@@ -10,14 +10,15 @@ import (
 )
 
 type model struct {
-	index     int
-	choices   []string
-	selsected map[int]bool
+	index         int
+	choices       []string
+	selsected     map[int]bool
+	isRunItemProg bool
 }
 
 func InitModel() model {
 	return model{
-		choices:   []string{"item1", "item2", "item3", "item4", "item5", "item6", "item7", "item8", "item9", "item10"},
+		choices:   []string{},
 		selsected: make(map[int]bool),
 	}
 }
@@ -48,6 +49,9 @@ func (m *model) Load() {
 	choicesData, err := ioutil.ReadFile("../.data/data_choices.txt")
 	if err != nil {
 		log.Fatal(err)
+	}
+	if string(choicesData) == "" {
+		return
 	}
 	m.choices = strings.Split(string(choicesData), "\n")
 
@@ -94,11 +98,25 @@ func (m *model) DeleteItem(index int) int {
 	return index - 1
 }
 
+func (m *model) Newitem() {
+	p := tea.NewProgram(InitNewitemModel(m))
+
+	if err := p.Start(); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func (m *model) ResetItem() {
+	m.choices = []string{}
+	m.selsected = make(map[int]bool)
+	m.Save()
+}
+
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
-		case "q":
+		case "q", "esc", "ctrl+c":
 			m.Save()
 			return m, tea.Quit
 		case "up", "k":
@@ -116,17 +134,28 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.selsected[m.index] = true
 			}
 		case "d":
-			m.index = m.DeleteItem(m.index)
+			if m.index >= 0 && m.index < len(m.choices) {
+				m.index = m.DeleteItem(m.index)
+			}
+		case "n":
+			if !m.isRunItemProg {
+				m.Newitem()
+			}
+		case "r":
+			m.ResetItem()
 		}
 	}
 	return m, nil
 }
 
 func (m model) View() string {
-	title := "todo list"
 	view := strings.Builder{}
 
-	view.WriteString(fmt.Sprintf("%s\n\n", title))
+	if len(m.choices) == 0 {
+		view.WriteString("No items found.\n")
+		view.WriteString("[N]ew")
+		return view.String()
+	}
 
 	for i, choice := range m.choices {
 		cursor := " "
