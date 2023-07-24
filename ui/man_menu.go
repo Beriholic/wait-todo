@@ -1,4 +1,4 @@
-package main
+package ui
 
 import (
 	"fmt"
@@ -25,7 +25,7 @@ func InitModel() model {
 func (m model) Save() {
 	// Write choices to file
 	choicesData := []byte(strings.Join(m.choices, "\n"))
-	err := ioutil.WriteFile("../data/data_choices.txt", choicesData, 0644)
+	err := ioutil.WriteFile("../.data/data_choices.txt", choicesData, 0644)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -37,7 +37,7 @@ func (m model) Save() {
 	}
 	selectedDataStr := strings.Join(selectedData, "\n")
 	selectedDataBytes := []byte(selectedDataStr)
-	err = ioutil.WriteFile("../data/data_selected.txt", selectedDataBytes, 0644)
+	err = ioutil.WriteFile("../.data/data_selected.txt", selectedDataBytes, 0644)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -45,14 +45,14 @@ func (m model) Save() {
 
 func (m *model) Load() {
 	// Read choices from file
-	choicesData, err := ioutil.ReadFile("../data/data_choices.txt")
+	choicesData, err := ioutil.ReadFile("../.data/data_choices.txt")
 	if err != nil {
 		log.Fatal(err)
 	}
 	m.choices = strings.Split(string(choicesData), "\n")
 
 	// Read selected from file
-	selectedData, err := ioutil.ReadFile("../data/data_selected.txt")
+	selectedData, err := ioutil.ReadFile("../.data/data_selected.txt")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -71,6 +71,27 @@ func (m *model) Load() {
 
 func (m model) Init() tea.Cmd {
 	return nil
+}
+
+func (m *model) DeleteItem(index int) int {
+	m.choices = append(m.choices[:index], m.choices[index+1:]...)
+	delete(m.selsected, index)
+
+	m.Save()
+
+	for k := range m.selsected {
+		if k > index {
+			m.selsected[k-1] = true
+			delete(m.selsected, k)
+		}
+	}
+	switch index {
+	case len(m.choices):
+		return index - 1
+	case 0:
+		return 0
+	}
+	return index - 1
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -94,6 +115,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			} else {
 				m.selsected[m.index] = true
 			}
+		case "d":
+			m.index = m.DeleteItem(m.index)
 		}
 	}
 	return m, nil
@@ -118,14 +141,10 @@ func (m model) View() string {
 		view.WriteString(fmt.Sprintf("%s [%s] %s\n", cursor, checked, choice))
 	}
 
-	return view.String()
-}
+	view.WriteString("\n")
+	view.WriteString("[N]ew  ")
+	view.WriteString("[D]el  ")
+	view.WriteString("[R]eset")
 
-func main() {
-	m := InitModel()
-	m.Load()
-	p := tea.NewProgram(m)
-	if err := p.Start(); err != nil {
-		log.Fatal("error running program:", err)
-	}
+	return view.String()
 }
