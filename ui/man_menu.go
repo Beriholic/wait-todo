@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
 	"log"
 	"strings"
 
@@ -21,14 +22,63 @@ func InitModel() model {
 	}
 }
 
+func (m model) Save() {
+	// Write choices to file
+	choicesData := []byte(strings.Join(m.choices, "\n"))
+	err := ioutil.WriteFile("../data/data_choices.txt", choicesData, 0644)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Write selected to file
+	var selectedData []string
+	for k := range m.selsected {
+		selectedData = append(selectedData, fmt.Sprintf("%d", k))
+	}
+	selectedDataStr := strings.Join(selectedData, "\n")
+	selectedDataBytes := []byte(selectedDataStr)
+	err = ioutil.WriteFile("../data/data_selected.txt", selectedDataBytes, 0644)
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+func (m *model) Load() {
+	// Read choices from file
+	choicesData, err := ioutil.ReadFile("../data/data_choices.txt")
+	if err != nil {
+		log.Fatal(err)
+	}
+	m.choices = strings.Split(string(choicesData), "\n")
+
+	// Read selected from file
+	selectedData, err := ioutil.ReadFile("../data/data_selected.txt")
+	if err != nil {
+		log.Fatal(err)
+	}
+	selectedDataStr := string(selectedData)
+	if selectedDataStr != "" {
+		selectedDataArr := strings.Split(selectedDataStr, "\n")
+		for _, v := range selectedDataArr {
+			if v != "" {
+				k := 0
+				fmt.Sscanf(v, "%d", &k)
+				m.selsected[k] = true
+			}
+		}
+	}
+}
+
 func (m model) Init() tea.Cmd {
 	return nil
 }
+
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "q":
+			m.Save()
 			return m, tea.Quit
 		case "up", "k":
 			if m.index > 0 {
@@ -72,7 +122,9 @@ func (m model) View() string {
 }
 
 func main() {
-	p := tea.NewProgram(InitModel())
+	m := InitModel()
+	m.Load()
+	p := tea.NewProgram(m)
 	if err := p.Start(); err != nil {
 		log.Fatal("error running program:", err)
 	}
