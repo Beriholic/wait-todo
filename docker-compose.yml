@@ -1,0 +1,21 @@
+version: '3.7'
+
+networks:
+  todolist:
+    driver: bridge
+
+services:
+  mysql:
+    container_name: todolist_mysql
+    image: mysql:latest
+    restart: always
+    environment:
+      - MYSQL_ROOT_PASSWORD=root
+      - MYSQL_DATABASE=todolist
+      - MYSQL_USER=local
+      - MYSQL_PASSWORD=db22455
+      - TZ=Asia/Shanghai
+    ports:
+      - "3306:3306"
+    networks:
+      - todolist
